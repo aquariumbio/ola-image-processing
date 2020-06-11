@@ -19,13 +19,13 @@ FORMATS = ['.jpg', '.png', '.tif', '.tiff']
 
 def analyze(fpath, thresh, minsize, clf, remove_spec=False):
 
-    if os.path.isdir(fpath): # filepath is a directory
-        results = {}
-        for subpath in os.listdir(fpath):
-            if any(subpath.lower().endswith(fmt) for fmt in FORMATS):
-                results[subpath] = analyze(os.path.join(fpath, subpath),thresh, minsize, clf, remove_spec)
-                means, classes = results[subpath]
-        return results
+    # if os.path.isdir(fpath): # filepath is a directory
+    #     results = {}
+    #     for subpath in os.listdir(fpath):
+    #         if any(subpath.lower().endswith(fmt) for fmt in FORMATS):
+    #             results[subpath] = analyze(os.path.join(fpath, subpath),thresh, minsize, clf, remove_spec)
+    #             means, classes = results[subpath]
+    #     return results
 
     img = imread(fpath)
     ds_factor = int(np.sqrt(img.size) / 1200) + 1
@@ -71,10 +71,10 @@ def analyze(fpath, thresh, minsize, clf, remove_spec=False):
             keepers = kmeans.labels_ == choice
             pixels = pixels[keepers]
 
-        means.append(np.mean(pixels, axis=0))
+        means.append(np.mean(pixels, axis=0).tolist())
 
-    classes = [clf.predict(np.reshape(mean, (1,-1))) for mean in means]
-    return means, classes
+    classes = [clf.predict(np.reshape(mean, (1,-1))).tolist() for mean in means]
+    return [means, classes]
 
 
 # threshold brightness for glowbox or transilluminator
@@ -99,15 +99,15 @@ clf = {
 }
 
 def glow_box_analysis(file):
-    return analyze(file, thresh=thresh[box],
-                         minsize=minsize[box],
-                         clf = clf[box],
+    return analyze(file, thresh=thresh['glow box'],
+                         minsize=minsize['glow box'],
+                         clf = clf['glow box'],
                          remove_spec=False)
 
 def transilluminator_analysis(file):
-    return analyze(file, thresh=thresh[transill],
-                         minsize=minsize[transill],
-                         clf = clf[transill],
+    return analyze(file, thresh=thresh['transill'],
+                         minsize=minsize['transill'],
+                         clf = clf['transill'],
                          remove_spec=True)
 
 if __name__ == '__main__':

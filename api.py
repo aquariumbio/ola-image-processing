@@ -37,13 +37,13 @@ def process_strips():
 def classify_fluorescence():
     
     file = request.files['file']
-
     try:
+        flatten = lambda l: [item for sublist in l for item in sublist]
         results = fluore.glow_box_analysis(file)
+        results[1] = flatten(results[1])
         response = jsonify(results=results)
     except:
         response = jsonify(error='API ERROR: couldnt analyze the file. Be sure file is in a common format like jpg.')
-    
     return response
 
 app.run(host='0.0.0.0', port=5000)
