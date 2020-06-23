@@ -1,8 +1,8 @@
 import flask
-from flask import request, jsonify, Response
-
-import json
-import inspect
+from flask import (
+    request,
+    jsonify
+)
 
 import detection_strips
 import fluorescence_classifier.analyze as fluore
@@ -20,30 +20,32 @@ def home():
 
 @app.route('/api/processstrips', methods=['POST'])
 def process_strips():
-    
+
     file = request.files['file']
 
     try:
-        tstats = detection_strips.process_image_from_file(file, trimmed=False)    
+        tstats = detection_strips.process_image_from_file(file, trimmed=False)
         results = detection_strips.make_calls_from_tstats(tstats)
         response = jsonify(results=results)
     except:
-        response = jsonify(error='API ERROR: couldnt analyze the file. Be sure file is in a common format like jpg.')
-    
+        response = jsonify(
+            error='API ERROR: couldnt analyze the file. Be sure file is in a common format like jpg.')
+
     return response
 
 
 @app.route('/api/classifyfluorescence', methods=['POST'])
 def classify_fluorescence():
-    
+
     file = request.files['file']
     try:
-        flatten = lambda l: [item for sublist in l for item in sublist]
         results = fluore.glow_box_analysis(file)
-        results[1] = flatten(results[1])
+        results[1] = [item for sublist in results[1] for item in sublist]
         response = jsonify(results=results)
     except:
-        response = jsonify(error='API ERROR: couldnt analyze the file. Be sure file is in a common format like jpg.')
+        response = jsonify(
+            error='API ERROR: couldnt analyze the file. Be sure file is in a common format like jpg.')
     return response
+
 
 app.run(host='0.0.0.0', port=5000)

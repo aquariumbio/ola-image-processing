@@ -19,9 +19,9 @@ from skimage.transform import rotate
 from skimage.filters import threshold_isodata
 from skimage.measure import label, regionprops
 
-BOXH, BOXW = 3, 4 # constants scaling ttest box height and height
+BOXH, BOXW = 3, 4  # constants scaling ttest box height and height
 
-BAND_THRESHOLD = 1.5 #tstat value to recognize band
+BAND_THRESHOLD = 1.5  # tstat value to recognize band
 BANDS_TO_CALL = {
     (False, False, True): 'M',
     (True, True, True): 'N',
@@ -31,13 +31,18 @@ BANDS_TO_CALL = {
     (False, False, False): 'R'
 }
 
+
 def make_calls_from_tstats(strips_tstats):
-    return [BANDS_TO_CALL[tuple(map(lambda tstat : tstat > BAND_THRESHOLD, strip_tstats))] 
-            for strip_tstats in strips_tstats]
+    return [
+        BANDS_TO_CALL[tuple(
+            map(lambda tstat: tstat > BAND_THRESHOLD, strip_tstats))]
+        for strip_tstats in strips_tstats
+    ]
+
 
 def process_image_from_file(file, trimmed=True):
-    '''processes the given image file 
-    returns the tstats for each band for each strip 
+    '''processes the given image file
+    returns the tstats for each band for each strip
     if trimmed flag is false, attempts to isolate only the paper strip'''
 
     image = io.imread(file)
@@ -48,24 +53,25 @@ def process_image_from_file(file, trimmed=True):
 
     return tstats
 
+
 def process_strip(filepath, trimmed=True):
     '''processes the given image file or all images in the given filepath
     returns the tstats for each band for each strip (for each image)
     if trimmed flag is false, attempts to isolate only the paper strip'''
-    
-    if os.path.isdir(filepath): # filepath is a directory
+
+    if os.path.isdir(filepath):  # filepath is a directory
         results = []
         for path in os.listdir(filepath):
             results.append(process_strip(filepath + '/' + path, trimmed))
         return results
-    
-    else: # filepath is a single file
-        
+
+    else:  # filepath is a single file
+
         formats = ['.jpg', '.png', '.tif', '.tiff']
         if any(filepath.lower().endswith(fmt) for fmt in formats):
-            
+
             strip = io.imread(filepath)
-            
+
             if not trimmed:
                 strip = find_strip(strip)
             return extract_tstats(strip)
@@ -99,7 +105,7 @@ def trim(image):
     rmin, cmin, rmax, cmax = bbox * scale_factor
 
     transformed = rotate(image, angles[best], resize=True)
-    transformed = transformed[rmin:rmax,cmin:cmax]
+    transformed = transformed[rmin:rmax, cmin:cmax]
     return transformed
 
 
@@ -123,7 +129,7 @@ def crop(strip_array):
         s = round(test_height * 0.62)
         w = round(test_width * i + test_width / 4)
         e = round(test_width * (i + 1) - test_width / 4)
-        cropped = strip_array[n:s,w:e]
+        cropped = strip_array[n:s, w:e]
         crops.append(cropped)
     return crops
 
@@ -133,17 +139,17 @@ def find_strip(cropped):
     cropped = cropped.astype('float')
 
     h, w, d = cropped.shape
-    cropped = cropped[h//10:,:,:]
+    cropped = cropped[h//10:, :, :]
 
-    r, g, b = cropped[:,:,0], cropped[:,:,1], cropped[:,:,2]
-    combo = 2 * r - 4.5 * g + 2.4 * b # LDA to discriminate paper from plastic
+    r, g, b = cropped[:, :, 0], cropped[:, :, 1], cropped[:, :, 2]
+    combo = 2 * r - 4.5 * g + 2.4 * b  # LDA to discriminate paper from plastic
     sigma = len(combo)//50
     combo = gaussian_filter(combo, sigma=sigma)
 
     strip_width = round(0.3 * combo.shape[1])
     strip_height = int(4 * strip_width)
     weighted = uniform_filter(combo, (strip_height, strip_width),
-                                mode='constant', cval=min(combo.flatten()))
+                              mode='constant', cval=min(combo.flatten()))
     apply_displacement_loss(weighted)
 
     cy, cx = ndimaxpos(weighted)
@@ -159,9 +165,9 @@ def find_strip(cropped):
 def apply_displacement_loss(weighted):
     '''applies a loss function favoring the center of the weighted array
     NOTE - this function modifies the argument IN PLACE'''
-    cy, cx = weighted.shape[0] // 2, weighted.shape[1] // 2;
+    cy, cx = weighted.shape[0] // 2, weighted.shape[1] // 2
     for c, col in enumerate(weighted):
-        for  r, value in enumerate(col):
+        for r, value in enumerate(col):
             v = ((c - cy) / cx) ** 2 + ((r - cx) / cx) ** 2
             weighted[c, r] = value - v * 0.05
 
@@ -169,7 +175,7 @@ def apply_displacement_loss(weighted):
 def extract_tstats(strip):
     '''reduces the strip to a 1D signal, identifies the bands, and calculates
     the band intensities; returns the signal, maxima, and band intensities'''
-    strip = combine_rgb(strip) # LDA to discriminate band from background
+    strip = combine_rgb(strip)  # LDA to discriminate band from background
     signal = smooth(strip.mean(axis=1))
     maxima = find_maxima(signal, 5)
     bands = select_bands(signal, maxima)
@@ -181,21 +187,21 @@ def extract_tstats(strip):
 def combine_rgb(image):
     '''converts three separate rgb channels to a single band intensity signal
     using LDA coefficients tuned for distinguishing bands on a strip'''
-    r, g, b = image[:,:,0], image[:,:,1], image[:,:,2]
+    r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
     return 0.12040484 * r - 0.656551 * g + 0.37544564 * b
 
 
 def smooth(signal, window_len=11, window_type='hanning'):
     '''smooths the given 1D signal using the specified window type
     (window type can be hanning, hamming, bartlett, or blackman)'''
-    if window_len<3: # do nothing if window length is less than 3
+    if window_len < 3:  # do nothing if window length is less than 3
         return signal
-    s = np.r_[signal[window_len-1:0:-1],signal,signal[-2:-window_len-1:-1]]
+    s = np.r_[signal[window_len-1:0:-1], signal, signal[-2:-window_len-1:-1]]
     if window_type == 'flat':
-        w = np.ones(window_len,'d')
+        w = np.ones(window_len, 'd')
     else:
         w = eval('np.'+window_type+'(window_len)')
-    return np.convolve(w/w.sum(),s,mode='valid')[window_len//2:-window_len//2]
+    return np.convolve(w/w.sum(), s, mode='valid')[window_len//2:-window_len//2]
 
 
 def find_maxima(signal, radius):
@@ -204,7 +210,7 @@ def find_maxima(signal, radius):
     maxima = []
 #    signal = signal[BOXH:-BOXH] # trim off problematic edges
     for i in range(radius, len(signal)):
-        if max(signal[max(0,i-radius):min(len(signal),i+radius)]) <= signal[i]:
+        if max(signal[max(0, i-radius):min(len(signal), i+radius)]) <= signal[i]:
             maxima.append((i, signal[i]))
     return np.array(maxima)
 
@@ -212,19 +218,19 @@ def find_maxima(signal, radius):
 def select_bands(signal, maxima):
     '''returns numpy array of [CTRL, WT, MUT] bands from the given
     signal and list of (index, value) local maxima points'''
-    
+
     # This algorithm is heuristically adapted for Epson scanners
 
     div0 = BOXH
     div1 = round(0.25 * len(signal))
     div2 = round(0.6 * len(signal))
     div3 = len(signal) - 4 * BOXH
-    
+
     done = False
     fish = 0
 
-    while done == False:
-        
+    while not done:
+
         band1, band2, band3 = None, None, None
 
         maxima = maxima[maxima[:, 1].argsort()][::-1]
@@ -238,7 +244,7 @@ def select_bands(signal, maxima):
             if div2 < m[0] and m[0] < div3:
                 if band3 is None:
                     band3 = m
-    
+
         if band1 is None:
             band1_loc = signal[div0:div1].argmax() + div0
             band1 = (band1_loc, signal[band1_loc])
@@ -248,9 +254,9 @@ def select_bands(signal, maxima):
         if band3 is None:
             band3_loc = signal[div2:div3].argmax() + div2
             band3 = (band3_loc, signal[band3_loc])
-    
+
         bands = band1, band2, band3
-        
+
         cond1 = (band2[1] - min(signal)) > 1.5 * (band1[1] - min(signal))
         cond2 = (band2[1] - min(signal)) > (band1[1] - min(signal))
         if fish >= 3:
@@ -262,7 +268,7 @@ def select_bands(signal, maxima):
             fish += 1
         else:
             done = True
-    
+
     return np.array(bands)
 
 
@@ -272,17 +278,17 @@ def extract_regions(strip, band_locs):
     bl1, bl2, bl3 = tuple([int(bl[0]) for bl in band_locs])
     bg1, bg2, bg3 = bl1+3*BOXH, bl2+3*BOXH, bl3+3*BOXH
     h, w = strip.shape
-    
+
     if bg3 + BOXH >= len(strip):
         bg3 = bl3-3*BOXH
 
-    r1 = strip[bl1-BOXH:bl1+BOXH,BOXW:w-BOXW]
-    r2 = strip[bl2-BOXH:bl2+BOXH,BOXW:w-BOXW]
-    r3 = strip[bl3-BOXH:bl3+BOXH,BOXW:w-BOXW]
+    r1 = strip[bl1-BOXH:bl1+BOXH, BOXW:w-BOXW]
+    r2 = strip[bl2-BOXH:bl2+BOXH, BOXW:w-BOXW]
+    r3 = strip[bl3-BOXH:bl3+BOXH, BOXW:w-BOXW]
 
-    bgr1 = strip[bg1-BOXH:bg1+BOXH,BOXW:w-BOXW]
-    bgr2 = strip[bg2-BOXH:bg2+BOXH,BOXW:w-BOXW]
-    bgr3 = strip[bg3-BOXH:bg3+BOXH,BOXW:w-BOXW]
+    bgr1 = strip[bg1-BOXH:bg1+BOXH, BOXW:w-BOXW]
+    bgr2 = strip[bg2-BOXH:bg2+BOXH, BOXW:w-BOXW]
+    bgr3 = strip[bg3-BOXH:bg3+BOXH, BOXW:w-BOXW]
 
     return r1, bgr1, r2, bgr2, r3, bgr3
 

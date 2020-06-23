@@ -45,13 +45,15 @@ def analyze(fpath, thresh, minsize, clf, remove_spec=False):
 
     lseg = label(seg)
     regions = regionprops(lseg)
-    regions = sorted(regions, key=lambda r:r['centroid'][1]) #sort left to right
+    # sort left to right
+    regions = sorted(regions, key=lambda r: r['centroid'][1])
     while len(regions) > 3:
         minarea = min(r['convex_area'] for r in regions)
         regions = [r for r in regions if r['convex_area'] > minarea]
 
     maxrow = max(r['centroid'][0] for r in regions)
-    regions = [r for r in regions if r['centroid'][0] > maxrow-r['equivalent_diameter']*0.7]
+    regions = [r for r in regions if r['centroid']
+               [0] > maxrow-r['equivalent_diameter']*0.7]
     labels = [r['label'] for r in regions]
 
     means = []
@@ -63,17 +65,20 @@ def analyze(fpath, thresh, minsize, clf, remove_spec=False):
         minr, maxr = minr + deltar//3, maxr - deltar//4
         minc, maxc = minc + deltac//4, maxc - deltac//4
 
-        pixels = np.reshape(img[minr:maxr,minc:maxc], (-1,3)).astype(np.float32)
+        pixels = np.reshape(img[minr:maxr, minc:maxc],
+                            (-1, 3)).astype(np.float32)
 
         if remove_spec:
             kmeans = KMeans(n_clusters=2, random_state=0).fit(pixels)
-            choice = np.argmin([np.linalg.norm(c) for c in kmeans.cluster_centers_])
+            choice = np.argmin([np.linalg.norm(c)
+                                for c in kmeans.cluster_centers_])
             keepers = kmeans.labels_ == choice
             pixels = pixels[keepers]
 
         means.append(np.mean(pixels, axis=0).tolist())
 
-    classes = [clf.predict(np.reshape(mean, (1,-1))).tolist() for mean in means]
+    classes = [clf.predict(np.reshape(mean, (1, -1))).tolist()
+               for mean in means]
     return [means, classes]
 
 
@@ -91,24 +96,31 @@ minsize = {
 }
 
 
-
 base_path = Path(__file__).parent
+model_path = os.path.join(base_path, 'models')
 clf = {
-    'glow box': pickle.load(open(os.path.join(base_path, 'models', 'svm-glow-box.pkl'), 'rb')),
-    'transill': pickle.load(open(os.path.join(base_path, 'models', 'svm-transill.pkl'), 'rb'))
+    'glow box': pickle.load(open(
+        os.path.join(model_path, 'svm-glow-box.pkl'), 'rb')),
+    'transill': pickle.load(open(
+        os.path.join(model_path, 'svm-transill.pkl'), 'rb'))
 }
 
+
 def glow_box_analysis(file):
-    return analyze(file, thresh=thresh['glow box'],
-                         minsize=minsize['glow box'],
-                         clf = clf['glow box'],
-                         remove_spec=False)
+    return analyze(file,
+                   thresh=thresh['glow box'],
+                   minsize=minsize['glow box'],
+                   clf=clf['glow box'],
+                   remove_spec=False)
+
 
 def transilluminator_analysis(file):
-    return analyze(file, thresh=thresh['transill'],
-                         minsize=minsize['transill'],
-                         clf = clf['transill'],
-                         remove_spec=True)
+    return analyze(file,
+                   thresh=thresh['transill'],
+                   minsize=minsize['transill'],
+                   clf=clf['transill'],
+                   remove_spec=True)
+
 
 if __name__ == '__main__':
 
@@ -116,6 +128,6 @@ if __name__ == '__main__':
     for box in ('transill', 'glow box'):
         fpath = os.path.join('.', 'tests', box)
         results = analyze(fpath, thresh=thresh[box],
-                                 minsize=minsize[box],
-                                 clf = clf[box],
-                                 remove_spec=False)
+                          minsize=minsize[box],
+                          clf=clf[box],
+                          remove_spec=False)
