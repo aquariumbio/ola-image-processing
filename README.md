@@ -1,2 +1,3 @@
-# ola-image-processing
+# OLA Image Processing
+
 Image processing server from OLA-Simple project
